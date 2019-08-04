@@ -14,6 +14,7 @@ func init() {
 	runtime.LockOSThread()
 }
 
+// window dimensions for both glfw and our framebuffers
 const width int = 800
 const height int = 600
 
@@ -55,11 +56,26 @@ func main() {
 	}
 	window.SetFramebufferSizeCallback(callback)
 
+	// set color to use every time buffer is cleared
+	gl.ClearColor(0.2, 0.3, 0.3, 1.0)
+
 	// render loop
 	for !window.ShouldClose() {
+		// input
+		processInput(window)
+
+		// render
+		gl.Clear(gl.COLOR_BUFFER_BIT)
+
 		// double buffer system
 		window.SwapBuffers()
 		// check for input events
 		glfw.PollEvents()
+	}
+}
+
+func processInput(window *glfw.Window) {
+	if window.GetKey(glfw.KeyEscape) == glfw.Press {
+		window.SetShouldClose(true)
 	}
 }
