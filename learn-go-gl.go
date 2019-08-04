@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"runtime"
+	"strings"
 
 	"github.com/go-gl/gl/v3.3-core/gl"
 	"github.com/go-gl/glfw/v3.2/glfw"
@@ -56,8 +58,77 @@ func main() {
 	}
 	window.SetFramebufferSizeCallback(callback)
 
-	// set color to use every time buffer is cleared
-	gl.ClearColor(0.2, 0.3, 0.3, 1.0)
+	// compile the vertex shader
+	var vertexShader = gl.CreateShader(gl.VERTEX_SHADER)
+	cVertexShaderSource, free := gl.Strs(vertexShaderSource)
+	gl.ShaderSource(vertexShader, 1, cVertexShaderSource, nil)
+	free()
+	gl.CompileShader(vertexShader)
+	// test success of shader compilation
+	var success int32
+	gl.GetShaderiv(vertexShader, gl.COMPILE_STATUS, &success)
+	if success == gl.FALSE {
+		var logLength int32
+		gl.GetShaderiv(vertexShader, gl.INFO_LOG_LENGTH, &logLength)
+
+		log := strings.Repeat("\x00", int(logLength+1))
+		gl.GetShaderInfoLog(vertexShader, logLength, nil, gl.Str(log))
+		panic(fmt.Errorf("failed to compile vertex shader: %v", log))
+	}
+
+	// compile the fragment shader
+	var fragmentShader = gl.CreateShader(gl.FRAGMENT_SHADER)
+	cFragmentShaderSource, free := gl.Strs(fragmentShaderSource)
+	gl.ShaderSource(fragmentShader, 1, cFragmentShaderSource, nil)
+	free()
+	gl.CompileShader(fragmentShader)
+
+	gl.GetShaderiv(fragmentShader, gl.COMPILE_STATUS, &success)
+	if success == gl.FALSE {
+		var logLength int32
+		gl.GetShaderiv(fragmentShader, gl.INFO_LOG_LENGTH, &logLength)
+
+		log := strings.Repeat("\x00", int(logLength+1))
+		gl.GetShaderInfoLog(fragmentShader, logLength, nil, gl.Str(log))
+		panic(fmt.Errorf("failed to compile fragment shader: %v", log))
+	}
+
+	// link shaders
+	var shaderProgram = gl.CreateProgram()
+	gl.AttachShader(shaderProgram, vertexShader)
+	gl.AttachShader(shaderProgram, fragmentShader)
+	gl.LinkProgram(shaderProgram)
+
+	gl.GetProgramiv(shaderProgram, gl.LINK_STATUS, &success)
+	if success == gl.FALSE {
+		var logLength int32
+		gl.GetProgramiv(shaderProgram, gl.INFO_LOG_LENGTH, &logLength)
+
+		log := strings.Repeat("\x00", int(logLength+1))
+		gl.GetProgramInfoLog(shaderProgram, logLength, nil, gl.Str(log))
+		panic(fmt.Errorf("failed to link shader program: %v", log))
+	}
+
+	gl.UseProgram(shaderProgram)
+
+	// delete the shaders when we're done loading them
+	gl.DeleteShader(vertexShader)
+	gl.DeleteShader(fragmentShader)
+
+	// init vao and vbo
+	var vao, vbo uint32
+	gl.GenVertexArrays(1, &vao)
+	gl.BindVertexArray(vao)
+
+	gl.GenBuffers(1, &vbo)
+	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
+	gl.BufferData(gl.ARRAY_BUFFER, len(triangle), gl.Ptr(triangle), gl.STATIC_DRAW)
+	// set vertex attribute pointers
+	gl.EnableVertexAttribArray(0)
+	gl.VertexAttribPointer(0, 3, gl.FLOAT, false, 3*4, gl.PtrOffset(0))
+
+	gl.BindBuffer(gl.ARRAY_BUFFER, 0)
+	gl.BindVertexArray(0)
 
 	// render loop
 	for !window.ShouldClose() {
@@ -65,7 +136,13 @@ func main() {
 		processInput(window)
 
 		// render
+		gl.ClearColor(0.2, 0.3, 0.3, 1.0)
 		gl.Clear(gl.COLOR_BUFFER_BIT)
+
+		// draw triangle
+		gl.UseProgram(shaderProgram)
+		gl.BindVertexArray(vao)
+		gl.DrawArrays(gl.TRIANGLES, 0, 3)
 
 		// double buffer system
 		window.SwapBuffers()
@@ -79,3 +156,30 @@ func processInput(window *glfw.Window) {
 		window.SetShouldClose(true)
 	}
 }
+
+var triangle = []float32{
+	// x, y, z
+	-0.5, -0.5, 0.0,
+	0.5, -0.5, 0.0,
+	0.0, 0.5, 0.0,
+}
+
+const vertexShaderSource = `
+#version 330 core
+layout (location = 0) in vec3 aPos;
+
+void main()
+{
+	gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);
+}
+`
+
+const fragmentShaderSource = `
+#version 330 core
+out vec4 FragColor;
+
+void main()
+{
+	FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);
+}
+`
