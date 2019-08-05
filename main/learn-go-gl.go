@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-gl/gl/v3.3-core/gl"
 	"github.com/go-gl/glfw/v3.2/glfw"
+	"github.com/kproskuryakov/learngogl/shaders"
 )
 
 func init() {
@@ -58,6 +59,8 @@ func main() {
 		gl.Viewport(0, 0, int32(newWidth), int32(newHeight))
 	}
 	window.SetFramebufferSizeCallback(callback)
+
+	shaders.MakeShader()
 
 	// compile the vertex shader
 	var vertexShader = gl.CreateShader(gl.VERTEX_SHADER)
