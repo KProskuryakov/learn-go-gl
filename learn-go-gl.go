@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"runtime"
 	"strings"
 
@@ -184,12 +185,18 @@ func main() {
 		gl.ClearColor(0.2, 0.3, 0.3, 1.0)
 		gl.Clear(gl.COLOR_BUFFER_BIT)
 
+		timeVal := glfw.GetTime()
+		greenVal := float32((math.Sin(timeVal) / 2.0) + 0.5)
+		fmt.Printf("%f", greenVal)
+		vertexColorLoc := gl.GetUniformLocation(shaderProgram2, gl.Str("ourColor\x00"))
+
 		// draw
 		gl.UseProgram(shaderProgram)
 		gl.BindVertexArray(vao[0])
 		gl.DrawArrays(gl.TRIANGLES, 0, 3)
 
 		gl.UseProgram(shaderProgram2)
+		gl.Uniform4f(vertexColorLoc, 0, greenVal, 0, 1)
 		gl.BindVertexArray(vao[1])
 		gl.DrawArrays(gl.TRIANGLES, 0, 3)
 		gl.BindVertexArray(0)
@@ -250,8 +257,10 @@ const fragmentShaderYellowSource = `
 #version 330 core
 out vec4 FragColor;
 
+uniform vec4 ourColor;
+
 void main()
 {
-	FragColor = vec4(1.0f, 1.0f, 0.2f, 1.0f);
+	FragColor = ourColor;
 }
 `
