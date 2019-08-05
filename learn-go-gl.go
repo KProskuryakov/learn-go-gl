@@ -93,6 +93,23 @@ func main() {
 		panic(fmt.Errorf("failed to compile fragment shader: %v", log))
 	}
 
+	// compile the fragment shader
+	var fragmentShader2 = gl.CreateShader(gl.FRAGMENT_SHADER)
+	cFragmentShaderSource, free = gl.Strs(fragmentShaderYellowSource)
+	gl.ShaderSource(fragmentShader2, 1, cFragmentShaderSource, nil)
+	free()
+	gl.CompileShader(fragmentShader2)
+
+	gl.GetShaderiv(fragmentShader2, gl.COMPILE_STATUS, &success)
+	if success == gl.FALSE {
+		var logLength int32
+		gl.GetShaderiv(fragmentShader2, gl.INFO_LOG_LENGTH, &logLength)
+
+		log := strings.Repeat("\x00", int(logLength+1))
+		gl.GetShaderInfoLog(fragmentShader2, logLength, nil, gl.Str(log))
+		panic(fmt.Errorf("failed to compile fragment shader: %v", log))
+	}
+
 	// link shaders
 	var shaderProgram = gl.CreateProgram()
 	gl.AttachShader(shaderProgram, vertexShader)
@@ -109,25 +126,53 @@ func main() {
 		panic(fmt.Errorf("failed to link shader program: %v", log))
 	}
 
-	gl.UseProgram(shaderProgram)
+	// link shaders
+	var shaderProgram2 = gl.CreateProgram()
+	gl.AttachShader(shaderProgram2, vertexShader)
+	gl.AttachShader(shaderProgram2, fragmentShader2)
+	gl.LinkProgram(shaderProgram2)
+
+	gl.GetProgramiv(shaderProgram2, gl.LINK_STATUS, &success)
+	if success == gl.FALSE {
+		var logLength int32
+		gl.GetProgramiv(shaderProgram2, gl.INFO_LOG_LENGTH, &logLength)
+
+		log := strings.Repeat("\x00", int(logLength+1))
+		gl.GetProgramInfoLog(shaderProgram2, logLength, nil, gl.Str(log))
+		panic(fmt.Errorf("failed to link shader program: %v", log))
+	}
 
 	// delete the shaders when we're done loading them
 	gl.DeleteShader(vertexShader)
 	gl.DeleteShader(fragmentShader)
+	gl.DeleteShader(fragmentShader2)
 
 	// init vao and vbo
-	var vao, vbo uint32
-	gl.GenVertexArrays(1, &vao)
-	gl.BindVertexArray(vao)
+	var vao, vbo [2]uint32
+	gl.GenVertexArrays(2, &vao[0])
+	gl.GenBuffers(2, &vbo[0])
 
-	gl.GenBuffers(1, &vbo)
-	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
-	gl.BufferData(gl.ARRAY_BUFFER, len(triangle), gl.Ptr(triangle), gl.STATIC_DRAW)
+	gl.BindVertexArray(vao[0])
+	// put vertices in array buffer
+
+	gl.BindBuffer(gl.ARRAY_BUFFER, vbo[0])
+	gl.BufferData(gl.ARRAY_BUFFER, len(vertices)*4, gl.Ptr(vertices), gl.STATIC_DRAW)
+
 	// set vertex attribute pointers
-	gl.EnableVertexAttribArray(0)
 	gl.VertexAttribPointer(0, 3, gl.FLOAT, false, 3*4, gl.PtrOffset(0))
+	gl.EnableVertexAttribArray(0)
+
+	gl.BindVertexArray(vao[1])
+
+	gl.BindBuffer(gl.ARRAY_BUFFER, vbo[1])
+	gl.BufferData(gl.ARRAY_BUFFER, len(vertices2)*4, gl.Ptr(vertices2), gl.STATIC_DRAW)
+
+	// set vertex attribute pointers
+	gl.VertexAttribPointer(0, 3, gl.FLOAT, false, 3*4, gl.PtrOffset(0))
+	gl.EnableVertexAttribArray(0)
 
 	gl.BindBuffer(gl.ARRAY_BUFFER, 0)
+	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, 0)
 	gl.BindVertexArray(0)
 
 	// render loop
@@ -135,14 +180,19 @@ func main() {
 		// input
 		processInput(window)
 
-		// render
+		// renderArrays
 		gl.ClearColor(0.2, 0.3, 0.3, 1.0)
 		gl.Clear(gl.COLOR_BUFFER_BIT)
 
-		// draw triangle
+		// draw
 		gl.UseProgram(shaderProgram)
-		gl.BindVertexArray(vao)
+		gl.BindVertexArray(vao[0])
 		gl.DrawArrays(gl.TRIANGLES, 0, 3)
+
+		gl.UseProgram(shaderProgram2)
+		gl.BindVertexArray(vao[1])
+		gl.DrawArrays(gl.TRIANGLES, 0, 3)
+		gl.BindVertexArray(0)
 
 		// double buffer system
 		window.SwapBuffers()
@@ -157,11 +207,23 @@ func processInput(window *glfw.Window) {
 	}
 }
 
-var triangle = []float32{
-	// x, y, z
-	-0.5, -0.5, 0.0,
-	0.5, -0.5, 0.0,
-	0.0, 0.5, 0.0,
+var vertices = []float32{
+	0.5, 0.5, 0.0, // top right
+	0.5, -0.5, 0.0, // bottom right
+	-0.5, 0.5, 0.0, // top left
+}
+
+var vertices2 = []float32{
+	0.5, -0.5, 0.0, // bottom right
+	-0.5, -0.5, 0.0, // bottom left
+	-0.5, 0.5, 0.0, // top left
+}
+
+var indices = []uint32{
+	0, 1, 3, // first triangle
+}
+var indices2 = []uint32{
+	1, 2, 3, // second triangle
 }
 
 const vertexShaderSource = `
@@ -181,5 +243,15 @@ out vec4 FragColor;
 void main()
 {
 	FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);
+}
+`
+
+const fragmentShaderYellowSource = `
+#version 330 core
+out vec4 FragColor;
+
+void main()
+{
+	FragColor = vec4(1.0f, 1.0f, 0.2f, 1.0f);
 }
 `
