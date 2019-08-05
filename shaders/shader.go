@@ -68,6 +68,11 @@ func (shader *Shader) Use() {
 	gl.UseProgram(shader.ProgramID)
 }
 
+// SetFloat single float value uniform
+func (shader *Shader) SetFloat(uniform string, value float32) {
+	gl.Uniform1f(gl.GetUniformLocation(shader.ProgramID, gl.Str(uniform+"\x00")), value)
+}
+
 // readFile reads the file with a null term at the end
 func readFile(path string) (cstrs **uint8, free func()) {
 	data, err := ioutil.ReadFile(path)
