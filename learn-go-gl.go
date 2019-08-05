@@ -160,8 +160,11 @@ func main() {
 	gl.BufferData(gl.ARRAY_BUFFER, len(vertices)*4, gl.Ptr(vertices), gl.STATIC_DRAW)
 
 	// set vertex attribute pointers
-	gl.VertexAttribPointer(0, 3, gl.FLOAT, false, 3*4, gl.PtrOffset(0))
+	gl.VertexAttribPointer(0, 3, gl.FLOAT, false, 6*4, gl.PtrOffset(0))
 	gl.EnableVertexAttribArray(0)
+	// set color attribute pointers
+	gl.VertexAttribPointer(1, 3, gl.FLOAT, false, 6*4, gl.PtrOffset(3*4))
+	gl.EnableVertexAttribArray(1)
 
 	gl.BindVertexArray(vao[1])
 
@@ -169,8 +172,11 @@ func main() {
 	gl.BufferData(gl.ARRAY_BUFFER, len(vertices2)*4, gl.Ptr(vertices2), gl.STATIC_DRAW)
 
 	// set vertex attribute pointers
-	gl.VertexAttribPointer(0, 3, gl.FLOAT, false, 3*4, gl.PtrOffset(0))
+	gl.VertexAttribPointer(0, 3, gl.FLOAT, false, 6*4, gl.PtrOffset(0))
 	gl.EnableVertexAttribArray(0)
+
+	gl.VertexAttribPointer(1, 3, gl.FLOAT, false, 6*4, gl.PtrOffset(3*4))
+	gl.EnableVertexAttribArray(1)
 
 	gl.BindBuffer(gl.ARRAY_BUFFER, 0)
 	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, 0)
@@ -187,8 +193,7 @@ func main() {
 
 		timeVal := glfw.GetTime()
 		greenVal := float32((math.Sin(timeVal) / 2.0) + 0.5)
-		fmt.Printf("%f", greenVal)
-		vertexColorLoc := gl.GetUniformLocation(shaderProgram2, gl.Str("ourColor\x00"))
+		vertexColorLoc := gl.GetUniformLocation(shaderProgram2, gl.Str("setColor\x00"))
 
 		// draw
 		gl.UseProgram(shaderProgram)
@@ -215,41 +220,40 @@ func processInput(window *glfw.Window) {
 }
 
 var vertices = []float32{
-	0.5, 0.5, 0.0, // top right
-	0.5, -0.5, 0.0, // bottom right
-	-0.5, 0.5, 0.0, // top left
+	// pos         colors
+	0.5, 0.5, 0.0, 1.0, 0.0, 0.0, // top right
+	0.5, -0.5, 0.0, 0.0, 1.0, 0.0, // bottom right
+	-0.5, 0.5, 0.0, 0.0, 0.0, 1.0, // top left
 }
 
 var vertices2 = []float32{
-	0.5, -0.5, 0.0, // bottom right
-	-0.5, -0.5, 0.0, // bottom left
-	-0.5, 0.5, 0.0, // top left
-}
-
-var indices = []uint32{
-	0, 1, 3, // first triangle
-}
-var indices2 = []uint32{
-	1, 2, 3, // second triangle
+	0.5, -0.5, 0.0, 1.0, 0.0, 0.0, // bottom right
+	-0.5, -0.5, 0.0, 0.0, 1.0, 0.0, // bottom left
+	-0.5, 0.5, 0.0, 0.0, 0.0, 1.0, // top left
 }
 
 const vertexShaderSource = `
 #version 330 core
 layout (location = 0) in vec3 aPos;
+layout (location = 1) in vec3 aColor;
+
+out vec3 ourColor;
 
 void main()
 {
-	gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);
+	gl_Position = vec4(aPos, 1.0);
+	ourColor = aColor;
 }
 `
 
 const fragmentShaderSource = `
 #version 330 core
 out vec4 FragColor;
+in vec3 ourColor;
 
 void main()
 {
-	FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);
+	FragColor = vec4(ourColor, 1.0);
 }
 `
 
@@ -257,10 +261,10 @@ const fragmentShaderYellowSource = `
 #version 330 core
 out vec4 FragColor;
 
-uniform vec4 ourColor;
+uniform vec4 setColor;
 
 void main()
 {
-	FragColor = ourColor;
+	FragColor = setColor;
 }
 `
